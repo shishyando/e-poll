@@ -21,7 +21,7 @@ contract Poll is Ownable {
     mapping(address => mapping(uint16 => uint)) private _userVotes;
     mapping(address => bool) private _alreadyVoted;
 
-    mapping(uint16 => uint) public optionVotes; // TODO PRIVATE
+    mapping(uint16 => uint) public optionVotes;
 
     string[] public options;
 
@@ -131,7 +131,7 @@ contract Poll is Ownable {
     function finalizeQuiz(uint16 resultId) external onlyOwner finished isQuiz {
         quizResult = int16(resultId);
         uint moneyLost = (_totalVotes - optionVotes[resultId]) * 4 / 5;
-        uint toOwner = _totalVotes - moneyLost - optionVotes[resultId];
+        uint toOwner = _totalVotes - (moneyLost + optionVotes[resultId]);
         if (_settings.token != address(0)) {
             IERC20(_settings.token).transfer(owner(), toOwner);
         } else {
@@ -146,7 +146,7 @@ contract Poll is Ownable {
         uint16 resultId = uint16(quizResult);
         uint moneyLost = (_totalVotes - optionVotes[resultId]) * 4 / 5;
         uint moneyToSpare = moneyLost + optionVotes[resultId];
-        uint reward = moneyToSpare * _userVotes[tx.origin][resultId] / moneyToSpare;
+        uint reward = moneyToSpare * _userVotes[tx.origin][resultId] / optionVotes[resultId];
         if (_settings.token != address(0)) {
             IERC20(_settings.token).transfer(tx.origin, reward);
         } else {
@@ -223,10 +223,10 @@ contract HackScript is Script {
         pollManager.setCreatePollPrice(RewardPolicy.ToWinners, 3 gwei);
 
         PollManager.PollSettings memory settings = PollManager.PollSettings({
-            price: 2 gwei,
-            choiceType: ChoiceType.Quiz,
+            price: 0,
+            choiceType: ChoiceType.MultiChoice,
             token: address(0),
-            rewardPolicy: RewardPolicy.ToWinners
+            rewardPolicy: RewardPolicy.ToOwner
         });
         string[] memory options = new string[](2);
         options[0] = "first";
@@ -244,22 +244,51 @@ contract HackScript is Script {
 
         poll.start();
 
-        pollAddress.call{value: 2 gwei}(abi.encodeWithSignature("voteForEther(uint16)", 0));
-        pollAddress.call{value: 5 gwei}(abi.encodeWithSignature("voteForEther(uint16)", 1));
-
-        poll.finish();
-
-        console.log(address(me).balance);
-
-        poll.finalizeQuiz(1);
-
-        console.log(address(me).balance);
-
-        poll.getReward();
+        poll.voteForEther(0);
+        poll.voteForEther(1);
 
         console.log(address(me).balance);
 
         console.log(poll.optionVotes(0), poll.optionVotes(1));
+
+        // PollManager.PollSettings memory settings = PollManager.PollSettings({
+        //     price: 2 gwei,
+        //     choiceType: ChoiceType.Quiz,
+        //     token: address(0),
+        //     rewardPolicy: RewardPolicy.ToWinners
+        // });
+        // string[] memory options = new string[](2);
+        // options[0] = "first";
+        // options[1] = "second";
+
+        // (, bytes memory data) = address(pollManager).call{value: pollManager.rewardManagerCreatePollPrice()}(
+        //     abi.encodeWithSignature("createPoll((uint256,uint8,address,uint8),string[])", settings, options)
+        // );
+
+        // console.log(address(me).balance);
+
+        // address pollAddress = abi.decode(data, (address));
+
+        // Poll poll = Poll(pollAddress);
+
+        // poll.start();
+
+        // pollAddress.call{value: 2 gwei}(abi.encodeWithSignature("voteForEther(uint16)", 0));
+        // pollAddress.call{value: 5 gwei}(abi.encodeWithSignature("voteForEther(uint16)", 1));
+
+        // poll.finishPoll();
+
+        // console.log(address(me).balance);
+
+        // poll.finalizeQuiz(1);
+
+        // console.log(address(me).balance);
+
+        // poll.getReward();
+
+        // console.log(address(me).balance);
+
+        // console.log(poll.optionVotes(0), poll.optionVotes(1));
 
         vm.stopBroadcast();
     }
