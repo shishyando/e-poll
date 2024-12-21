@@ -130,8 +130,13 @@ contract Poll is Ownable {
 
     function finalizeQuiz(uint16 resultId) external onlyOwner finished isQuiz {
         quizResult = int16(resultId);
-        uint moneyLost = (_totalVotes - optionVotes[resultId]) * 4 / 5;
-        uint toOwner = _totalVotes - (moneyLost + optionVotes[resultId]);
+        uint toOwner = 0;
+        if (optionVotes[resultId] == 0) {
+            toOwner = _totalVotes;
+        } else {
+            uint winnersReward = (_totalVotes - optionVotes[resultId]) * 4 / 5;
+            toOwner = _totalVotes - (winnersReward + optionVotes[resultId]);
+        }
         if (_settings.token != address(0)) {
             IERC20(_settings.token).transfer(owner(), toOwner);
         } else {
@@ -144,8 +149,8 @@ contract Poll is Ownable {
         require(_alreadyVoted[tx.origin], "User already claimed reward or didn't vote");
         _alreadyVoted[tx.origin] = false;
         uint16 resultId = uint16(quizResult);
-        uint moneyLost = (_totalVotes - optionVotes[resultId]) * 4 / 5;
-        uint moneyToSpare = moneyLost + optionVotes[resultId];
+        uint winnersReward = (_totalVotes - optionVotes[resultId]) * 4 / 5;
+        uint moneyToSpare = winnersReward + optionVotes[resultId];
         uint reward = moneyToSpare * _userVotes[tx.origin][resultId] / optionVotes[resultId];
         if (_settings.token != address(0)) {
             IERC20(_settings.token).transfer(tx.origin, reward);
