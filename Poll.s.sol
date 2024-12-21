@@ -205,6 +205,10 @@ contract PollManager is Ownable {
     function drain(uint value) external onlyOwner {
         owner().call{value: value}("");
     }
+
+    function drainToken(address token, uint tokenAmount) external onlyOwner {
+        IERC20(token).transfer(owner(), tokenAmount);
+    }
 }
 
 contract HackScript is Script {
